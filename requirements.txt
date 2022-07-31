@@ -5,3 +5,4 @@ rich
 numpy
 autofaiss
 transformers
+labml_nn

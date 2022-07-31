@@ -135,6 +135,8 @@ def build_database(workspace: str = './workspace', file_name: str = 'text.txt', 
     with console.status("Save"):
         faiss.write_index(index, f'{workspace}/retro.index')
         console.log("Save index")
+    
+    return dataset.n_tokens
 
 
 class RetroIndex:

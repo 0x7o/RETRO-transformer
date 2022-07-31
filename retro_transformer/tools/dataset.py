@@ -11,9 +11,9 @@ from rich.console import Console
 console = Console()
 
 
-def build_dataset(workspace: str = './workspace', file_name: str = 'text.txt', 
-                  chunk_len: int = 16, chunks_per_sample: int = 2,
-                  skip_range: int = 8):
+def build_dataset(workspace: str = './workspace', file_name: str = 'text.txt',
+                  index: RetroIndex = None, chunk_len: int = 16,
+                  chunks_per_sample: int = 2, skip_range: int = 8):
     """
     ## Build the dataset
     * `chunk_len` is the chunk length
@@ -30,9 +30,6 @@ def build_dataset(workspace: str = './workspace', file_name: str = 'text.txt',
 
     # Training portion of it
     text = dataset.train
-
-    # Load the index for retrieving neighbors
-    index = RetroIndex()
 
     # The input sample offsets
     sample_offsets = []

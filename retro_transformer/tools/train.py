@@ -168,7 +168,7 @@ def train(model, workspace: str = './workspace', file_name: str = 'text.txt', wa
     # Create the `Trainer`
     trainer = Trainer(model, train_dl, optimizer)
     # Create the `Sampler`
-    sampler = Sampler( model, tds, chunk_len)
+    sampler = Sampler(model, tds, chunk_len)
     #
 
     for _ in range(epoch):
