@@ -1,4 +1,4 @@
-# Retrieval-Enhanced Transformer
+# Retrieval-Enhanced Transformer (WIP)
 
 Easy-to-use [Retro](https://arxiv.org/abs/2112.04426) implementation in PyTorch.
 
