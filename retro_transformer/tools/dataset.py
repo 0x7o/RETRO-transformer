@@ -80,6 +80,8 @@ def build_dataset(workspace: str = './workspace', file_name: str = 'text.txt',
     # since our dataset is small.
     with open(f'{workspace}/retro_train_dataset.json', 'w') as f:
         f.write(json.dumps(samples))
+    
+    return dataset.n_tokens
 
 
 class Dataset(PyTorchDataset):

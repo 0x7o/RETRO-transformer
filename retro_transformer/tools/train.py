@@ -3,13 +3,19 @@ from torch import nn
 from torch.utils.data import DataLoader, RandomSampler
 
 from retro_transformer.tools.optimizer import Noam
-from retro_transformer.model import RetroModel, NearestNeighborEncoder
+from retro_transformer.model import RetroModel
 from retro_transformer.tools.database import TextFileDataset, RetroIndex
 from retro_transformer.tools.dataset import Dataset
+
+import wandb
 
 from rich.progress import track
 from rich.console import Console
 
+from accelerate import Accelerator
+
+accelerator = Accelerator()
+device = accelerator.device
 console = Console()
 
 class Sampler:
@@ -18,7 +24,7 @@ class Sampler:
     This class greedily samples from a model.
     """
 
-    def __init__(self, device: torch.device, model: RetroModel, tds: TextFileDataset, chunk_len: int):
+    def __init__(self, model: RetroModel, tds: TextFileDataset, chunk_len: int):
         """
         * `device` is the device of the model
         * `model` is the [Retro mode](retro.html)
@@ -28,7 +34,6 @@ class Sampler:
         self.chunk_len = chunk_len
         self.tds = tds
         self.model = model
-        self.device = device
 
         # [Retro index](database.html)
         self.index = RetroIndex()
@@ -76,8 +81,8 @@ class Sampler:
             neighbors = torch.stack([torch.stack([self.tds.text_to_i(n) for n in chunk]) for chunk in neighbors_str])
 
             # Move them to the same device as the model
-            src = src.to(self.device)
-            neighbors = neighbors.to(self.device)
+            src = src.to(device)
+            neighbors = neighbors.to(device)
 
             # Get model output
             res = self.model(src[None, :], neighbors[None, :, :, :])
@@ -98,8 +103,7 @@ class Trainer:
     ## Retro trainer
     """
 
-    def __init__(self, device: torch.device, model: RetroModel,
-                 dataloader: DataLoader, optimizer: torch.optim.Optimizer):
+    def __init__(self, model: RetroModel, dataloader: DataLoader, optimizer: torch.optim.Optimizer):
         """
         * `device` is the device of the model
         * `model` is the [Retro mode](retro.html)
@@ -107,7 +111,6 @@ class Trainer:
         * `optimizer` is the optimizer
         """
         self.optimizer = optimizer
-        self.device = device
         self.dataloader = dataloader
         self.model = model
         self.loss_func = nn.CrossEntropyLoss()
@@ -119,9 +122,6 @@ class Trainer:
 
         # Iterate through training data
         for i, (src, tgt, neighbors) in track(self.dataloader, 'Train'):
-            # Move data to the device
-            src, tgt, neighbors = src.to(self.device), tgt.to(self.device), neighbors.to(self.device)
-
             # Forward pass
             res = self.model(src, neighbors)
             # Calculate loss
@@ -130,75 +130,58 @@ class Trainer:
             # Clear the gradients
             self.optimizer.zero_grad()
             # Backward pass
-            loss.backward()
+            accelerator.backward(loss)
             # Optimize the model
             self.optimizer.step()
 
             # Save training statistics and increment the global step counter
-            tracker.save({'loss.train': loss})
-            tracker.add_global_step(len(src))
+            wandb.log({'loss': loss})
 
 
-def train(model):
+def train(model, workspace: str = './workspace', file_name: str = 'text.txt', wandb_name: str = 'retro-transformer',
+          batch_size: int = 4, d_model: int = 512, chunk_len: int = 16, epoch: int = 32, save_dir: str = './workspace'):
     """
     ## Create and train a small model
     """
 
     # Create an experiment
-    experiment.create(name='retro_small')
+    wandb.init(wandb_name)
 
-    # GPU device
-    device = torch.device('cuda:0')
-
-    # Load Tiny Shakespeare dataset
+    # Load dataset
     tds = TextFileDataset(
-        lab.get_data_path() / 'tiny_shakespeare.txt',
-        list,
-        url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt')
+        f'{workspace}/{file_name}',
+        list)
 
     # Load [Retro dataset](dataset.html)
-    train_dataset = Dataset(lab.get_data_path() / 'retro_train_dataset.json', tds)
+    train_dataset = Dataset(f'{workspace}/retro_train_dataset.json', tds)
 
     # Create dataloader
     train_dl = DataLoader(train_dataset,
-                          batch_size=4,
+                          batch_size=batch_size,
                           sampler=RandomSampler(train_dataset, replacement=True))
 
-    # Hyper-parameters
-    chunk_len = 16
-    d_model = 128
-    d_ff = 512
-    n_heads = 16
-    d_k = 16
-
-    # Create the nearest neighbor encoder
-    nearest_neighbor_encoder = NearestNeighborEncoder(chunk_len, 6, {3}, d_model, n_heads, d_k, d_ff)
-    # Create the model
-    model = RetroModel(tds.n_tokens, d_model, 6,
-                       {3, 5},
-                       chunk_len, n_heads, d_k, d_ff,
-                       encoder=nearest_neighbor_encoder)
-    # Move the model to the device
-    model = model.to(device)
     # Create the optimizer
     optimizer = Noam(model.parameters(), lr=1., d_model=d_model, warmup=2_000)
+    
+    model, optimizer, train_dl = accelerator.prepare(model, optimizer, train_dl)
+    
     # Create the `Trainer`
-    trainer = Trainer(device, model, train_dl, optimizer)
+    trainer = Trainer(model, train_dl, optimizer)
     # Create the `Sampler`
-    sampler = Sampler(device, model, tds, chunk_len)
+    sampler = Sampler( model, tds, chunk_len)
     #
-    prompt = '''Second Citizen:\nOne word, good citizens.\n\nFirst Citizen:'''
 
-    # Start the experiment
-    with experiment.start():
-        # Train for `32` epochs
-        for epoch in range(32):
-            # Train
-            trainer()
-            # Print a new line
-            tracker.new_line()
-            # Sample from the `prompt`
-            logger.log([(prompt.replace('\n', '\\n\n'), Text.subtle),
-                        (sampler.sample(prompt, 128).replace('\n', '\\n\n'), Text.none)])
-            # Save models
-            experiment.save_checkpoint()
+    for _ in range(epoch):
+        # Train
+        trainer()
+        # Save models
+        torch.save(model.state_dict(), f'{save_dir}/model_{epoch}.pt')
+        torch.save(optimizer.state_dict(), f'{save_dir}/optimizer_{epoch}.pt')
+
+        # Sample text
+        sample = sampler.sample(' ', 100)
+        # Save the sample
+        wandb.log({'sample': sample})
+
+        # Print the sample
+        console.print(sample)

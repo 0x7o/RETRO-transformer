@@ -1,0 +1,7 @@
+torch
+accelerate
+wandb
+rich
+numpy
+autofaiss
+transformers
