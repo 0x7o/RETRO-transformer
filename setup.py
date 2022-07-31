@@ -2,13 +2,16 @@ import setuptools
 
 setuptools.setup(
 	name="retro_transformer",
-	version="1.0.2",
+	version="1.0.3",
 	author="Danil Kononyuk",
 	author_email="me@0x7o.link",
 	description="Easy-to-use Retrieval-Enhanced Transformer (Retro) implementation",
-	long_description="""# Retrieval-Enhanced Transformer
+	long_description="""![RETRO](data/RETRO.png)
+# Retrieval-Enhanced Transformer (WIP)
 
 Easy-to-use [Retro](https://arxiv.org/abs/2112.04426) implementation in PyTorch.
+
+This code based on [labml.ai](https://nn.labml.ai/transformers/retro/index.html) and [accelerate](https://github.com/huggingface/accelerate) for light inference and training on CPUs, GPUs, TPUs.
 
 ```python
 from retro_transformer.bert import BERTForChunkEmbeddings
@@ -40,7 +43,8 @@ model = RetroModel(n_vocab=num_tokens, d_model=d_model, n_layers=n_layers, chunk
                    n_heads=n_heads, d_k=d_k, d_ff=d_ff, encoder=nearest_neighbor_encoder, ca_layers={3, 5})
 
 train(model, workspace, text_file, chunk_len=chunk_len, d_model=d_model)
-```""",
+```
+""",
 	long_description_content_type="text/markdown",
 	url="https://github.com/0x7o/RETRO-transformer",
 	packages=setuptools.find_packages(),

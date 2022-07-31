@@ -12,6 +12,8 @@ import wandb
 from rich.progress import track
 from rich.console import Console
 
+import os
+
 from accelerate import Accelerator
 
 accelerator = Accelerator()
@@ -121,7 +123,7 @@ class Trainer:
         """
 
         # Iterate through training data
-        for i, (src, tgt, neighbors) in track(self.dataloader, 'Train'):
+        for (src, tgt, neighbors) in track(self.dataloader, 'Train'):
             # Forward pass
             res = self.model(src, neighbors)
             # Calculate loss
@@ -145,7 +147,10 @@ def train(model, workspace: str = './workspace', file_name: str = 'text.txt', wa
     """
 
     # Create an experiment
-    wandb.init(wandb_name)
+    wandb.init(project=wandb_name)
+    
+    if os.path.exists(f'{workspace}/checkpoints/') is False:
+        os.mkdir(f'{workspace}/checkpoints/')
 
     # Load dataset
     tds = TextFileDataset(
@@ -174,12 +179,15 @@ def train(model, workspace: str = './workspace', file_name: str = 'text.txt', wa
     for _ in range(epoch):
         # Train
         trainer()
-        # Save models
-        torch.save(model.state_dict(), f'{save_dir}/model_{epoch}.pt')
-        torch.save(optimizer.state_dict(), f'{save_dir}/optimizer_{epoch}.pt')
+        
+        # Save model and optimizer
+        os.mkdir(f'{save_dir}/checkpoints/{_}')
+        torch.save(model.state_dict(), f'{save_dir}/checkpoints/{_}/model.pt')
+        torch.save(optimizer.state_dict(), f'{save_dir}/checkpoints/{_}/optimizer.pt')
 
-        # Sample text
-        sample = sampler.sample(' ', 100)
+        # Sample
+        sample = sampler.sample('Second Citizen:\nOne word, good citizens.\n\nFirst Citizen:', 128)
+        
         # Save the sample
         wandb.log({'sample': sample})
 
