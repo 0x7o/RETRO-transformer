@@ -2,7 +2,8 @@
 # Retrieval-Enhanced Transformer (WIP)
 
 Easy-to-use [Retro](https://arxiv.org/abs/2112.04426) implementation in PyTorch.
-The library uses [labml.ai](https://nn.labml.ai/transformers/retro/index.html) and [accelerate](https://github.com/huggingface/accelerate) for light inference and training on CPUs, GPUs, TPUs.
+
+This code based on [labml.ai](https://nn.labml.ai/transformers/retro/index.html) and [accelerate](https://github.com/huggingface/accelerate) for light inference and training on CPUs, GPUs, TPUs.
 
 ```python
 from retro_transformer.bert import BERTForChunkEmbeddings
