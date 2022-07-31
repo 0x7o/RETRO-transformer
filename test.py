@@ -14,9 +14,9 @@ workspace = './workspace'
 text_file = 'text.txt'
 
 bert = BERTForChunkEmbeddings('bert-base-uncased', 'cuda')
-index = RetroIndex(workspace, chunk_len, bert=bert)
 
 build_database(workspace, text_file, bert=bert, chunk_len=chunk_len)
+index = RetroIndex(workspace, chunk_len, bert=bert)
 num_tokens = build_dataset(workspace, text_file, chunk_len=chunk_len, index=index)
 
 nearest_neighbor_encoder = NearestNeighborEncoder(chunk_len=chunk_len, n_layers=n_layers,
